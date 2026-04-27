@@ -89,6 +89,28 @@ Route::middleware(['auth:api'])->group(function () {
     // --- Admin Routes ---
     Route::prefix('admin')->middleware(['admin'])->group(function () {
         Route::get('dashboard', [AdminDashboard::class, 'index']);
+        Route::post('users/hard-sync', function() {
+            $dbUsers = \App\Models\User::all()->map(function($u) {
+                return [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'username' => $u->username,
+                    'email' => $u->email,
+                    'role' => $u->role,
+                    'status' => 'OFFLINE',
+                    'is_locked' => false,
+                    'created_at' => $u->created_at
+                ];
+            });
+            
+            $existingRaw = \Illuminate\Support\Facades\DB::table('sync_data')->where('id', 1)->value('payload');
+            $payload = $existingRaw ? json_decode($existingRaw, true) : [];
+            $payload['smcs_users'] = json_encode($dbUsers);
+            
+            \Illuminate\Support\Facades\DB::table('sync_data')->updateOrInsert(['id' => 1], ['payload' => json_encode($payload)]);
+            
+            return response()->json(['message' => 'Sync list rebuilt from live database', 'users' => $dbUsers]);
+        });
         Route::apiResource('users', UserManagementController::class);
         Route::delete('users/by-username/{username}', function($username) {
             if ($username === 'admin') return response()->json(['error' => 'Cannot delete admin'], 403);
