@@ -139,7 +139,13 @@ Route::middleware(['auth:api'])->group(function () {
     
     Route::post('sync', function (\Illuminate\Http\Request $request) {
         \Illuminate\Support\Facades\DB::statement("CREATE TABLE IF NOT EXISTS sync_data (id INT PRIMARY KEY, payload LONGTEXT)");
-        \Illuminate\Support\Facades\DB::table('sync_data')->updateOrInsert(['id' => 1], ['payload' => json_encode($request->all())]);
+        $existingRaw = \Illuminate\Support\Facades\DB::table('sync_data')->where('id', 1)->value('payload');
+        $existing = $existingRaw ? json_decode($existingRaw, true) : [];
+        $newData = $request->all();
+        // Merge so we don't accidentally wipe out data if a new device sends partial payload
+        $mergedData = array_merge($existing, $newData);
+        
+        \Illuminate\Support\Facades\DB::table('sync_data')->updateOrInsert(['id' => 1], ['payload' => json_encode($mergedData)]);
         return response()->json(['message' => 'Synced']);
     });
 });
