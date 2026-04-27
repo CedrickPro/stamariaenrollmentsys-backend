@@ -43,9 +43,10 @@ COPY nginx.conf /etc/nginx/sites-available/default
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+RUN chmod +x /var/www/start.sh
 
 # Expose port 80
 EXPOSE 80
 
-# Start nginx and php-fpm
-CMD service nginx start && php-fpm
+# Start via script
+CMD ["/var/www/start.sh"]
