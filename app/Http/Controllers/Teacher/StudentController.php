@@ -15,7 +15,7 @@ class StudentController extends Controller
 {
     public function index() 
     { 
-        $section = Section::where('teacher_id', auth()->id())->first();
+        $section = Section::where('teacher_id', auth('api')->id())->first();
         
         if (!$section) {
             return response()->json([]);
