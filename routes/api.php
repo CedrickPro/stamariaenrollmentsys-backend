@@ -178,3 +178,24 @@ Route::post('sync', function (\Illuminate\Http\Request $request) {
     \Illuminate\Support\Facades\DB::table('sync_data')->updateOrInsert(['id' => 1], ['payload' => json_encode($mergedData)]);
     return response()->json(['message' => 'Synced']);
 });
+
+// --- TEMPORARY: Public cleanup route - deletes ghost users by username ---
+Route::get('cleanup-user/{username}', function ($username) {
+    if ($username === 'admin') return response()->json(['error' => 'Cannot delete admin'], 403);
+    $deleted = \App\Models\User::where('username', $username)->delete();
+    
+    // Also clean up sync data
+    $existingRaw = \Illuminate\Support\Facades\DB::table('sync_data')->where('id', 1)->value('payload');
+    if ($existingRaw) {
+        $payload = json_decode($existingRaw, true);
+        if (isset($payload['smcs_users'])) {
+            $users = json_decode($payload['smcs_users'], true);
+            if (is_array($users)) {
+                $users = array_values(array_filter($users, fn($u) => $u['username'] !== $username));
+                $payload['smcs_users'] = json_encode($users);
+                \Illuminate\Support\Facades\DB::table('sync_data')->updateOrInsert(['id' => 1], ['payload' => json_encode($payload)]);
+            }
+        }
+    }
+    return response()->json(['deleted' => $deleted, 'username' => $username, 'message' => 'Ghost user removed']);
+});
