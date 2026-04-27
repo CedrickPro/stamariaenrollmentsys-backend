@@ -129,25 +129,25 @@ Route::middleware(['auth:api'])->group(function () {
     });
 
     Route::post('ai/chat', [AssistantController::class, 'chat']);
+});
 
-    // --- Global State Sync (Auto-Sync Magic) ---
-    Route::get('sync', function () {
-        \Illuminate\Support\Facades\DB::statement("CREATE TABLE IF NOT EXISTS sync_data (id INT PRIMARY KEY, payload LONGTEXT)");
-        $data = \Illuminate\Support\Facades\DB::table('sync_data')->where('id', 1)->value('payload');
-        return response()->json(['data' => $data ? json_decode($data) : null]);
-    });
+// --- Global State Sync (Auto-Sync Magic) - Outside Auth for Universal Access ---
+Route::get('sync', function () {
+    \Illuminate\Support\Facades\DB::statement("CREATE TABLE IF NOT EXISTS sync_data (id INT PRIMARY KEY, payload LONGTEXT)");
+    $data = \Illuminate\Support\Facades\DB::table('sync_data')->where('id', 1)->value('payload');
+    return response()->json(['data' => $data ? json_decode($data) : null]);
+});
+
+Route::post('sync', function (\Illuminate\Http\Request $request) {
+    \Illuminate\Support\Facades\DB::statement("CREATE TABLE IF NOT EXISTS sync_data (id INT PRIMARY KEY, payload LONGTEXT)");
+    $existingRaw = \Illuminate\Support\Facades\DB::table('sync_data')->where('id', 1)->value('payload');
+    $existing = $existingRaw ? json_decode($existingRaw, true) : [];
+    if (!is_array($existing)) $existing = [];
     
-    Route::post('sync', function (\Illuminate\Http\Request $request) {
-        \Illuminate\Support\Facades\DB::statement("CREATE TABLE IF NOT EXISTS sync_data (id INT PRIMARY KEY, payload LONGTEXT)");
-        $existingRaw = \Illuminate\Support\Facades\DB::table('sync_data')->where('id', 1)->value('payload');
-        $existing = $existingRaw ? json_decode($existingRaw, true) : [];
-        if (!is_array($existing)) $existing = [];
-        
-        $newData = $request->all();
-        // Merge so we don't accidentally wipe out data if a new device sends partial payload
-        $mergedData = array_merge($existing, $newData);
-        
-        \Illuminate\Support\Facades\DB::table('sync_data')->updateOrInsert(['id' => 1], ['payload' => json_encode($mergedData)]);
-        return response()->json(['message' => 'Synced']);
-    });
+    $newData = $request->all();
+    // Merge so we don't accidentally wipe out data if a new device sends partial payload
+    $mergedData = array_merge($existing, $newData);
+    
+    \Illuminate\Support\Facades\DB::table('sync_data')->updateOrInsert(['id' => 1], ['payload' => json_encode($mergedData)]);
+    return response()->json(['message' => 'Synced']);
 });
