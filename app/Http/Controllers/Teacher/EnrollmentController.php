@@ -25,26 +25,29 @@ class EnrollmentController extends Controller
         $query = Enrollment::with(['student', 'section', 'schoolYear'])
             ->when($activeYear, fn($q) => $q->where('school_year_id', $activeYear->id));
 
-        // Teachers see their section's enrollments AND pending enrollments for their grade level
+        // Teachers see:
+        // 1. Enrollments in their assigned section
+        // 2. Pending enrollments in their grade level (if they have a section)
+        // 3. Enrollments where they are the preferred_adviser
         if ($user->role === 'teacher') {
             $section = Section::where('teacher_id', $user->id)->first();
-            if ($section) {
-                $query->where(function($q) use ($section) {
-                    $q->where('section_id', $section->id)
+            $query->where(function($q) use ($user, $section) {
+                // By Name (Preferred Adviser)
+                $q->whereHas('student', function($sq) use ($user) {
+                    $sq->where('preferred_adviser', $user->name);
+                });
+
+                // By Section/Grade
+                if ($section) {
+                    $q->orWhere('section_id', $section->id)
                       ->orWhere(function($sq) use ($section) {
                           $sq->whereNull('section_id')
                              ->whereHas('student', function($ssq) use ($section) {
                                  $ssq->where('grade_level', $section->grade_level);
                              });
                       });
-                });
-            } else {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'No assigned section found. Please contact the administrator.',
-                    'data' => []
-                ], 200); 
-            }
+                }
+            });
         }
 
         return response()->json([

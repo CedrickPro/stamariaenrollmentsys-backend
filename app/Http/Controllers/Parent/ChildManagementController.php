@@ -202,7 +202,7 @@ class ChildManagementController extends Controller
         $student = Student::where('parent_id', $user->id)->findOrFail($id);
         return response()->json([
             'status' => 'success',
-            'data' => $student->load(['enrollments.section', 'enrollments.schoolYear']),
+            'data' => $student->load(['enrollments.section', 'enrollments.schoolYear', 'medicalInfo', 'grades.subject']),
             'message' => 'Child details retrieved'
         ]);
     }

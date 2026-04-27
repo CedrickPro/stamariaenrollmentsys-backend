@@ -80,49 +80,37 @@ Route::middleware(['auth:api'])->group(function () {
         });
         Route::apiResource('classrooms', ClassroomController::class);
         Route::apiResource('sections', SectionController::class);
-        Route::apiResource('subjects', SubjectController::class);
-        Route::get('students', [AdminStudent::class, 'index']);
+        Route::apiResource('school-years', SchoolYearController::class);
+        Route::post('school-years/{id}/activate', [SchoolYearController::class, 'activate']);
     });
 
     // --- Teacher/Parent Routes ---
+    Route::get('teachers', function() {
+        return response()->json(\App\Models\User::where('role', 'teacher')->get(['id', 'name']));
+    });
+    Route::get('sections', [SectionController::class, 'index']);
+
     Route::prefix('teacher')->middleware(['role:teacher'])->group(function () {
         Route::get('dashboard', [TeacherDashboard::class, 'index']);
         Route::apiResource('students', TeacherStudent::class);
+        Route::apiResource('enrollments', EnrollmentController::class);
+        Route::post('enrollments/{id}/approve', [EnrollmentController::class, 'approve']);
+        Route::post('enrollments/{id}/reject', [EnrollmentController::class, 'reject']);
+        Route::post('students/{id}/medical', [TeacherStudent::class, 'medical']);
+        Route::get('students/{id}/grades', [TeacherStudent::class, 'grades']);
+        Route::post('students/{id}/grades', [TeacherStudent::class, 'saveGrades']);
     });
     Route::prefix('parent')->middleware(['role:parent'])->group(function () {
         Route::get('dashboard', [ParentDashboard::class, 'index']);
         Route::apiResource('children', ChildManagementController::class);
+        Route::get('children/{id}/attendance', [ChildManagementController::class, 'attendance']);
+        Route::post('children/{id}/medical', [ChildManagementController::class, 'saveMedical']);
     });
 
     Route::post('ai/chat', [AssistantController::class, 'chat']);
 
-    // BI-DIRECTIONAL CLOUD SYNC (Namespaced by User ID for Privacy)
-    Route::get('sync', function (\Illuminate\Http\Request $request) {
-        $user = $request->user();
-        $globalRaw = DB::table('sync_data')->where('id', 1)->value('payload');
-        $global = $globalRaw ? json_decode($globalRaw, true) : [];
-        $personalRaw = DB::table('sync_data')->where('id', 10000 + $user->id)->value('payload');
-        $personal = $personalRaw ? json_decode($personalRaw, true) : [];
-        return response()->json(['data' => array_merge($global, $personal)]);
-    });
-
-    Route::post('sync', function (\Illuminate\Http\Request $request) {
-        $user = $request->user();
-        $payload = $request->all();
-        $globalKeys = ['smcs_users', 'smcs_sections', 'smcs_school_years', 'smcs_subjects', 'smcs_classrooms'];
-        $globalPayload = []; $personalPayload = [];
-        foreach ($payload as $k => $v) { 
-            if (in_array($k, $globalKeys)) $globalPayload[$k] = $v; 
-            else $personalPayload[$k] = $v; 
-        }
-        if (count($globalPayload) > 0) {
-            $exRaw = DB::table('sync_data')->where('id', 1)->value('payload');
-            $ex = $exRaw ? json_decode($exRaw, true) : [];
-            DB::table('sync_data')->updateOrInsert(['id' => 1], ['payload' => json_encode(array_merge($ex, $globalPayload))]);
-        }
-        if (count($personalPayload) > 0) {
-            DB::table('sync_data')->updateOrInsert(['id' => 10000 + $user->id], ['payload' => json_encode($personalPayload)]);
-        }
-        return response()->json(['message' => 'Synced Successfully']);
-    });
+    // Feedback System
+    Route::get('feedbacks', [\App\Http\Controllers\FeedbackController::class, 'index']);
+    Route::post('feedbacks', [\App\Http\Controllers\FeedbackController::class, 'store']);
+    Route::post('feedbacks/{id}/reply', [\App\Http\Controllers\FeedbackController::class, 'reply']);
 });

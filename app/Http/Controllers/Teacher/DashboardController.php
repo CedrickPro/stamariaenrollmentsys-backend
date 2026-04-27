@@ -21,7 +21,18 @@ class DashboardController extends Controller
         $activeYear = \App\Models\SchoolYear::where('is_active', true)->first();
 
         $advisoryCount = $section ? Enrollment::where('section_id', $section->id)->where('status', 'enrolled')->count() : 0;
-        $pendingCount = $section ? Enrollment::where('section_id', $section->id)->where('status', 'pending')->count() : 0;
+        
+        // Pending count: those in their section OR those who chose them as preferred adviser
+        $pendingCount = Enrollment::where('status', 'pending')
+            ->where(function($q) use ($user, $section) {
+                $q->whereHas('student', function($sq) use ($user) {
+                    $sq->where('preferred_adviser', $user->name);
+                });
+                if ($section) {
+                    $q->orWhere('section_id', $section->id);
+                }
+            })
+            ->count();
 
         $attendanceStats = [
             'present' => 0,
