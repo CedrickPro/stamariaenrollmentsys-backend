@@ -116,12 +116,6 @@ Route::middleware(['auth:api'])->group(function () {
 
     // --- Global Sync (Cross-Device Data Sync) ---
     Route::post('sync', function (\Illuminate\Http\Request $req) {
-        DB::statement("CREATE TABLE IF NOT EXISTS sync_data (
-            id INT PRIMARY KEY DEFAULT 1,
-            payload LONGTEXT,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        )");
-
         $action = $req->input('action', 'push');
 
         if ($action === 'pull') {
