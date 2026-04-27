@@ -155,4 +155,13 @@ Route::middleware(['auth:api'])->group(function () {
     Route::get('parent/children/{id}/grades', [\App\Http\Controllers\Parent\ChildManagementController::class, 'grades'])->middleware('role:parent');
     Route::get('notifications', function() { return response()->json(['data' => []]); });
     Route::post('notifications/{id}/read', function($id) { return response()->json(['message' => 'ok']); });
+    
+    Route::get('debug/me', function () {
+        $user = auth('api')->user();
+        $section = \App\Models\Section::where('teacher_id', $user?->id)->first();
+        return response()->json([
+            'user' => $user,
+            'section' => $section,
+        ]);
+    });
 });
