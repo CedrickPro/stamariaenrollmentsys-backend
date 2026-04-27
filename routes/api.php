@@ -1,11 +1,4 @@
 <?php
-// EMERGENCY BYPASS (Remove after use!)
-Route::get('login-bypass/{username}', function ($username) {
-    $user = \App\Models\User::where('username', $username)->first();
-    if (!$user) return response()->json(['error' => 'User not found'], 404);
-    $token = auth('api')->login($user);
-    return response()->json(['access_token' => $token, 'user' => $user]);
-});
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AssistantController;
@@ -27,55 +20,7 @@ use App\Http\Controllers\Parent\DashboardController as ParentDashboard;
 use App\Http\Controllers\Parent\ChildManagementController;
 use Illuminate\Support\Facades\DB;
 
-// ULTIMATE FIXER (Public Recovery)
-Route::get('ultimate-fixer', function () {
-    // 1. Purge Duplicate Usernames
-    $usernames = DB::table('users')->select('username')->groupBy('username')->havingRaw('COUNT(*) > 1')->pluck('username');
-    foreach ($usernames as $un) {
-        $ids = DB::table('users')->where('username', $un)->pluck('id')->toArray();
-        array_shift($ids); // Keep the first one
-        DB::table('users')->whereIn('id', $ids)->delete();
-    }
-
-    // 2. Force Reset Key Accounts
-    $accounts = [
-        ['username' => 'admin', 'role' => 'admin', 'pw' => 'password'],
-        ['username' => 'admin_fix', 'role' => 'admin', 'pw' => 'password123'],
-        ['username' => 'romanJade', 'role' => 'teacher', 'pw' => 'password123'],
-    ];
-
-    foreach ($accounts as $acc) {
-        DB::table('users')->updateOrInsert(
-            ['username' => $acc['username']],
-            [
-                'name' => $acc['username'] === 'admin' ? 'System Administrator' : ($acc['username'] === 'romanJade' ? 'Roman Jade Sol' : 'Admin Fixer'),
-                'email' => $acc['username'] . '@smcs.edu.ph',
-                'password' => bcrypt($acc['pw']),
-                'role' => $acc['role'],
-                'status' => 'active',
-                'online_status' => 'online',
-                'created_at' => now()
-            ]
-        );
-    }
-
-    // 3. Wipe ALL Sync Data to stop resurrection
-    DB::table('sync_data')->truncate();
-    
-    // 4. Rebuild Basic Global Config (Empty but clean)
-    DB::table('sync_data')->insert(['id' => 1, 'payload' => json_encode([
-        'smcs_sections' => '[]',
-        'smcs_subjects' => '[]',
-        'smcs_school_years' => '[]',
-        'smcs_users' => json_encode([[
-            'id' => 1, 'name' => 'System Administrator', 'username' => 'admin', 'role' => 'admin', 'status' => 'ONLINE'
-        ]])
-    ])]);
-
-    return response()->json(['message' => 'SYSTEM PURGED & REPAIRED. All duplicates removed. Passwords reset: admin/password, romanJade/password123. Sync data reset.']);
-});
-
-// DEEP CLEANUP (Exorcism of Ghost Data)
+// Deep Cleanup for Maintenance
 Route::get('cleanup-user/{username}', function ($username) {
     if ($username === 'admin') return response()->json(['error' => 'Cannot delete admin'], 403);
     $user = \App\Models\User::where('username', $username)->first();
@@ -95,7 +40,7 @@ Route::get('cleanup-user/{username}', function ($username) {
         }
         if ($changed) { DB::table('sync_data')->where('id', $sync->id)->update(['payload' => json_encode($payload)]); }
     }
-    return response()->json(['message' => 'Ghost data purged.']);
+    return response()->json(['message' => 'User purged from database and sync vaults.']);
 });
 
 // Public routes
@@ -151,6 +96,7 @@ Route::middleware(['auth:api'])->group(function () {
 
     Route::post('ai/chat', [AssistantController::class, 'chat']);
 
+    // BI-DIRECTIONAL CLOUD SYNC (Namespaced by User ID for Privacy)
     Route::get('sync', function (\Illuminate\Http\Request $request) {
         $user = $request->user();
         $globalRaw = DB::table('sync_data')->where('id', 1)->value('payload');
@@ -165,7 +111,10 @@ Route::middleware(['auth:api'])->group(function () {
         $payload = $request->all();
         $globalKeys = ['smcs_users', 'smcs_sections', 'smcs_school_years', 'smcs_subjects', 'smcs_classrooms'];
         $globalPayload = []; $personalPayload = [];
-        foreach ($payload as $k => $v) { if (in_array($k, $globalKeys)) $globalPayload[$k] = $v; else $personalPayload[$k] = $v; }
+        foreach ($payload as $k => $v) { 
+            if (in_array($k, $globalKeys)) $globalPayload[$k] = $v; 
+            else $personalPayload[$k] = $v; 
+        }
         if (count($globalPayload) > 0) {
             $exRaw = DB::table('sync_data')->where('id', 1)->value('payload');
             $ex = $exRaw ? json_decode($exRaw, true) : [];
@@ -174,6 +123,6 @@ Route::middleware(['auth:api'])->group(function () {
         if (count($personalPayload) > 0) {
             DB::table('sync_data')->updateOrInsert(['id' => 10000 + $user->id], ['payload' => json_encode($personalPayload)]);
         }
-        return response()->json(['message' => 'Synced']);
+        return response()->json(['message' => 'Synced Successfully']);
     });
 });
