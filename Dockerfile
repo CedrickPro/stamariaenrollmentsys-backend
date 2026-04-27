@@ -28,6 +28,13 @@ WORKDIR /var/www
 # Copy existing application directory contents
 COPY . /var/www
 
+# Create necessary directories for Laravel
+RUN mkdir -p /var/www/storage/framework/sessions \
+    && mkdir -p /var/www/storage/framework/views \
+    && mkdir -p /var/www/storage/framework/cache \
+    && mkdir -p /var/www/storage/logs \
+    && mkdir -p /var/www/bootstrap/cache
+
 # Install dependencies
 RUN composer install --no-dev --optimize-autoloader
 
