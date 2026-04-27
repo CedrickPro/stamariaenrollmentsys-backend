@@ -90,6 +90,11 @@ Route::middleware(['auth:api'])->group(function () {
     Route::prefix('admin')->middleware(['admin'])->group(function () {
         Route::get('dashboard', [AdminDashboard::class, 'index']);
         Route::apiResource('users', UserManagementController::class);
+        Route::delete('users/by-username/{username}', function($username) {
+            if ($username === 'admin') return response()->json(['error' => 'Cannot delete admin'], 403);
+            \App\Models\User::where('username', $username)->delete();
+            return response()->json(['message' => 'User deleted from live database']);
+        });
         Route::post('users/{id}/toggle-lock', [UserManagementController::class, 'toggleLock']);
         Route::apiResource('classrooms', ClassroomController::class);
         Route::apiResource('sections', SectionController::class);
