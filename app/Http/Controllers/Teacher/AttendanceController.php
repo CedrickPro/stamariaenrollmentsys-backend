@@ -87,4 +87,34 @@ class AttendanceController extends Controller
 
         return response()->json($records);
     }
+
+    public function studentAttendance($id)
+    {
+        $records = Attendance::where('student_id', $id)
+            ->orderBy('date', 'desc')
+            ->get();
+        return response()->json($records);
+    }
+
+    public function report(Request $request)
+    {
+        $teacher = auth('api')->user();
+        $section = Section::where('teacher_id', $teacher->id)->first();
+
+        if (!$section) {
+            return response()->json(['data' => [], 'message' => 'No section assigned']);
+        }
+
+        $query = Attendance::where('section_id', $section->id)
+            ->with('student:id,first_name,last_name,lrn');
+
+        if ($request->has('month')) {
+            $query->whereMonth('date', date('m', strtotime($request->month)));
+        }
+        if ($request->has('year')) {
+            $query->whereYear('date', $request->year);
+        }
+
+        return response()->json(['data' => $query->get()]);
+    }
 }
