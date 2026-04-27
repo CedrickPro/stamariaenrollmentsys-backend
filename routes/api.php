@@ -129,4 +129,17 @@ Route::middleware(['auth:api'])->group(function () {
     });
 
     Route::post('ai/chat', [AssistantController::class, 'chat']);
+
+    // --- Global State Sync (Auto-Sync Magic) ---
+    Route::get('sync', function () {
+        \Illuminate\Support\Facades\DB::statement("CREATE TABLE IF NOT EXISTS sync_data (id INT PRIMARY KEY, payload LONGTEXT)");
+        $data = \Illuminate\Support\Facades\DB::table('sync_data')->where('id', 1)->value('payload');
+        return response()->json(['data' => $data ? json_decode($data) : null]);
+    });
+    
+    Route::post('sync', function (\Illuminate\Http\Request $request) {
+        \Illuminate\Support\Facades\DB::statement("CREATE TABLE IF NOT EXISTS sync_data (id INT PRIMARY KEY, payload LONGTEXT)");
+        \Illuminate\Support\Facades\DB::table('sync_data')->updateOrInsert(['id' => 1], ['payload' => json_encode($request->all())]);
+        return response()->json(['message' => 'Synced']);
+    });
 });
