@@ -141,6 +141,8 @@ Route::middleware(['auth:api'])->group(function () {
         \Illuminate\Support\Facades\DB::statement("CREATE TABLE IF NOT EXISTS sync_data (id INT PRIMARY KEY, payload LONGTEXT)");
         $existingRaw = \Illuminate\Support\Facades\DB::table('sync_data')->where('id', 1)->value('payload');
         $existing = $existingRaw ? json_decode($existingRaw, true) : [];
+        if (!is_array($existing)) $existing = [];
+        
         $newData = $request->all();
         // Merge so we don't accidentally wipe out data if a new device sends partial payload
         $mergedData = array_merge($existing, $newData);
